@@ -6,6 +6,7 @@ import os
 from scanner import scanner_instance
 from send2trash import send2trash
 import threading
+import time
 import subprocess
 from fastapi.responses import FileResponse
 from fastapi import HTTPException
@@ -67,6 +68,71 @@ async def get_results():
 
 class DeleteRequest(BaseModel):
     paths: List[str]
+
+class RemoveJsonRequest(BaseModel):
+    path: str
+
+# Global state for JSON removal progress
+json_cleanup_status = {
+    "running": False,
+    "inspected_count": 0,
+    "removed_count": 0,
+    "errors": [],
+    "path": "",
+    "current_folder": ""  # Currently traversing folder for UI visibility
+}
+
+def perform_json_removal(path: str):
+    global json_cleanup_status
+    json_cleanup_status["running"] = True
+    json_cleanup_status["inspected_count"] = 0
+    json_cleanup_status["removed_count"] = 0
+    json_cleanup_status["errors"] = []
+    json_cleanup_status["path"] = path
+    json_cleanup_status["current_folder"] = ""
+
+    print(f"DEBUG: Starting JSON removal in: {path}")
+
+    try:
+        for root, dirs, files in os.walk(path):
+            # Update current folder for UI visibility
+            json_cleanup_status["current_folder"] = root
+            for file in files:
+                json_cleanup_status["inspected_count"] += 1
+                
+                # Log progress to console every 500 files
+                if json_cleanup_status["inspected_count"] % 500 == 0:
+                    print(f"DEBUG: Inspected {json_cleanup_status['inspected_count']} files... (Found {json_cleanup_status['removed_count']} JSONs)")
+                
+                if file.lower().endswith(".json"):
+                    full_path = os.path.join(root, file)
+                    try:
+                        send2trash(full_path)
+                        json_cleanup_status["removed_count"] += 1
+                    except Exception as e:
+                        json_cleanup_status["errors"].append({"path": full_path, "error": str(e)})
+    except Exception as e:
+        print(f"ERROR: JSON removal failed: {str(e)}")
+        json_cleanup_status["errors"].append({"path": "global", "error": str(e)})
+    finally:
+        json_cleanup_status["running"] = False
+        json_cleanup_status["current_folder"] = ""
+        print(f"DEBUG: Finished JSON cleanup. Total inspected: {json_cleanup_status['inspected_count']}, Removed: {json_cleanup_status['removed_count']}")
+
+@app.post("/remove_json")
+async def start_remove_json(request: RemoveJsonRequest, background_tasks: BackgroundTasks):
+    if not os.path.exists(request.path):
+        raise HTTPException(status_code=404, detail="Path not found")
+    
+    if json_cleanup_status["running"]:
+        return {"status": "already_running"}
+    
+    background_tasks.add_task(perform_json_removal, request.path)
+    return {"status": "started", "path": request.path}
+
+@app.get("/remove_json/status")
+async def get_remove_json_status():
+    return json_cleanup_status
 
 @app.post("/delete")
 async def delete_files(request: DeleteRequest):
