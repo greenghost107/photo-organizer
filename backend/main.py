@@ -21,7 +21,8 @@ app.add_middleware(
 )
 
 class ScanRequest(BaseModel):
-    path: str
+    path: str = None  # For backward compatibility
+    paths: List[str] = None  # New multi-path support
 
 @app.get("/")
 async def root():
@@ -31,18 +32,34 @@ async def root():
 async def start_scan(request: ScanRequest):
     if scanner_instance.scanning:
         return {"status": "already scanning"}
-    
+
+    # Support both single path and multiple paths
+    if request.paths:
+        scan_paths = request.paths
+    elif request.path:
+        scan_paths = [request.path]
+    else:
+        raise HTTPException(status_code=400, detail="Must provide 'path' or 'paths'")
+
+    # Validate that all paths exist
+    invalid_paths = [p for p in scan_paths if not os.path.exists(p)]
+    if invalid_paths:
+        raise HTTPException(status_code=404, detail=f"Paths not found: {invalid_paths}")
+
     # Run scan in a separate thread to not block FastAPI
-    thread = threading.Thread(target=scanner_instance.scan, args=(request.path,))
+    thread = threading.Thread(target=scanner_instance.scan, args=(scan_paths,))
     thread.start()
-    return {"status": "started", "path": request.path}
+    return {"status": "started", "paths": scan_paths}
 
 @app.get("/status")
 async def get_status():
     return {
         "scanning": scanner_instance.scanning,
         "progress": scanner_instance.progress,
-        "total_files": scanner_instance.total_files
+        "total_files": scanner_instance.total_files,
+        "current_folder": scanner_instance.current_folder,
+        "folders_completed": scanner_instance.folders_completed,
+        "folders_total": scanner_instance.folders_total
     }
 
 @app.get("/results")
@@ -54,11 +71,13 @@ async def get_results():
         for path in group:
             try:
                 stat = os.stat(path)
+                metadata = scanner_instance.file_metadata.get(path, {})
                 group_info.append({
                     "path": path,
                     "name": os.path.basename(path),
                     "size": stat.st_size,
-                    "modified": stat.st_mtime
+                    "modified": stat.st_mtime,
+                    "source_root": metadata.get("source_root", "")
                 })
             except OSError:
                 continue
@@ -71,27 +90,39 @@ class DeleteRequest(BaseModel):
 
 class RemoveJsonRequest(BaseModel):
     path: str
+    remove_no_ext_binaries: bool = False
 
 # Global state for JSON removal progress
 json_cleanup_status = {
     "running": False,
     "inspected_count": 0,
     "removed_count": 0,
+    "removed_noext_count": 0,
     "errors": [],
     "path": "",
     "current_folder": ""  # Currently traversing folder for UI visibility
 }
 
-def perform_json_removal(path: str):
+def _is_binary_file(filepath: str, check_bytes: int = 512) -> bool:
+    """Check if a file is binary by reading the first N bytes for null bytes."""
+    try:
+        with open(filepath, 'rb') as f:
+            chunk = f.read(check_bytes)
+            return b'\x00' in chunk
+    except Exception:
+        return False
+
+def perform_json_removal(path: str, remove_no_ext_binaries: bool = False):
     global json_cleanup_status
     json_cleanup_status["running"] = True
     json_cleanup_status["inspected_count"] = 0
     json_cleanup_status["removed_count"] = 0
+    json_cleanup_status["removed_noext_count"] = 0
     json_cleanup_status["errors"] = []
     json_cleanup_status["path"] = path
     json_cleanup_status["current_folder"] = ""
 
-    print(f"DEBUG: Starting JSON removal in: {path}")
+    print(f"DEBUG: Starting JSON removal in: {path} (remove_no_ext_binaries={remove_no_ext_binaries})")
 
     try:
         for root, dirs, files in os.walk(path):
@@ -99,25 +130,34 @@ def perform_json_removal(path: str):
             json_cleanup_status["current_folder"] = root
             for file in files:
                 json_cleanup_status["inspected_count"] += 1
-                
+
                 # Log progress to console every 500 files
                 if json_cleanup_status["inspected_count"] % 500 == 0:
-                    print(f"DEBUG: Inspected {json_cleanup_status['inspected_count']} files... (Found {json_cleanup_status['removed_count']} JSONs)")
-                
+                    print(f"DEBUG: Inspected {json_cleanup_status['inspected_count']} files... (Found {json_cleanup_status['removed_count']} JSONs, {json_cleanup_status['removed_noext_count']} no-ext binaries)")
+
+                full_path = os.path.join(root, file)
+
                 if file.lower().endswith(".json"):
-                    full_path = os.path.join(root, file)
                     try:
                         send2trash(full_path)
                         json_cleanup_status["removed_count"] += 1
                     except Exception as e:
                         json_cleanup_status["errors"].append({"path": full_path, "error": str(e)})
+                elif remove_no_ext_binaries and '.' not in file:
+                    # File has no extension — check if it's binary
+                    if _is_binary_file(full_path):
+                        try:
+                            send2trash(full_path)
+                            json_cleanup_status["removed_noext_count"] += 1
+                        except Exception as e:
+                            json_cleanup_status["errors"].append({"path": full_path, "error": str(e)})
     except Exception as e:
         print(f"ERROR: JSON removal failed: {str(e)}")
         json_cleanup_status["errors"].append({"path": "global", "error": str(e)})
     finally:
         json_cleanup_status["running"] = False
         json_cleanup_status["current_folder"] = ""
-        print(f"DEBUG: Finished JSON cleanup. Total inspected: {json_cleanup_status['inspected_count']}, Removed: {json_cleanup_status['removed_count']}")
+        print(f"DEBUG: Finished JSON cleanup. Total inspected: {json_cleanup_status['inspected_count']}, Removed JSONs: {json_cleanup_status['removed_count']}, Removed no-ext binaries: {json_cleanup_status['removed_noext_count']}")
 
 @app.post("/remove_json")
 async def start_remove_json(request: RemoveJsonRequest, background_tasks: BackgroundTasks):
@@ -127,7 +167,7 @@ async def start_remove_json(request: RemoveJsonRequest, background_tasks: Backgr
     if json_cleanup_status["running"]:
         return {"status": "already_running"}
     
-    background_tasks.add_task(perform_json_removal, request.path)
+    background_tasks.add_task(perform_json_removal, request.path, request.remove_no_ext_binaries)
     return {"status": "started", "path": request.path}
 
 @app.get("/remove_json/status")

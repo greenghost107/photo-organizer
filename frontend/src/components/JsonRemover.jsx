@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react'
 
 function JsonRemover() {
     const [path, setPath] = useState('')
-    const [status, setStatus] = useState({ running: false, inspected_count: 0, removed_count: 0, errors: [], current_folder: '' })
+    const [removeNoExtBinaries, setRemoveNoExtBinaries] = useState(false)
+    const [status, setStatus] = useState({ running: false, inspected_count: 0, removed_count: 0, removed_noext_count: 0, errors: [], current_folder: '' })
     const [lastRemovedCount, setLastRemovedCount] = useState(null)
+    const [lastNoExtCount, setLastNoExtCount] = useState(0)
     const [lastErrors, setLastErrors] = useState([])
     const [isStarting, setIsStarting] = useState(false)
 
@@ -31,6 +33,7 @@ function JsonRemover() {
 
                     if (!data.running && !isStarting) {
                         setLastRemovedCount(data.removed_count);
+                        setLastNoExtCount(data.removed_noext_count || 0);
                         setLastErrors(data.errors || []);
                     }
                 } catch (e) {
@@ -44,11 +47,13 @@ function JsonRemover() {
     const handleRemove = async () => {
         if (!path) return;
 
-        if (!confirm("Are you sure you want to remove ALL JSON files in this directory and its subdirectories? They will be moved to the Trash.")) {
+        const extraWarning = removeNoExtBinaries ? " AND all binary files with no extension" : "";
+        if (!confirm(`Are you sure you want to remove ALL JSON files${extraWarning} in this directory and its subdirectories? They will be moved to the Trash.`)) {
             return;
         }
 
         setLastRemovedCount(null);
+        setLastNoExtCount(0);
         setLastErrors([]);
         setIsStarting(true);
 
@@ -57,7 +62,7 @@ function JsonRemover() {
             const res = await fetch('http://localhost:8000/remove_json', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ path })
+                body: JSON.stringify({ path, remove_no_ext_binaries: removeNoExtBinaries })
             });
             const data = await res.json();
             console.log('[JsonRemover] Start response:', data)
@@ -77,25 +82,39 @@ function JsonRemover() {
 
     return (
         <div className="animate-in fade-in duration-500">
-            <section className="glass p-8 mb-12 flex flex-col md:flex-row gap-4 items-end">
-                <div className="flex-grow space-y-2">
-                    <label className="text-sm font-semibold text-slate-400 ml-1">Cleanup Folder Path</label>
-                    <input
-                        type="text"
-                        placeholder="e.g. C:\\Users\\Media\\Downloads\\Google Takeout"
-                        className="input-field w-full"
-                        value={path}
-                        onChange={(e) => setPath(e.target.value)}
-                        disabled={showProgress}
-                    />
+            <section className="glass p-8 mb-12 space-y-4">
+                <div className="flex flex-col md:flex-row gap-4 items-end">
+                    <div className="flex-grow space-y-2">
+                        <label className="text-sm font-semibold text-slate-400 ml-1">Cleanup Folder Path</label>
+                        <input
+                            type="text"
+                            placeholder="e.g. C:\\Users\\Media\\Downloads\\Google Takeout"
+                            className="input-field w-full"
+                            value={path}
+                            onChange={(e) => setPath(e.target.value)}
+                            disabled={showProgress}
+                        />
+                    </div>
+                    <button
+                        className="btn-primary h-[42px] bg-rose-500 hover:bg-rose-600 border-rose-400/50"
+                        onClick={handleRemove}
+                        disabled={showProgress || !path}
+                    >
+                        {showProgress ? 'Cleaning...' : 'Remove JSONs'}
+                    </button>
                 </div>
-                <button
-                    className="btn-primary h-[42px] bg-rose-500 hover:bg-rose-600 border-rose-400/50"
-                    onClick={handleRemove}
-                    disabled={showProgress || !path}
-                >
-                    {showProgress ? 'Cleaning...' : 'Remove JSONs'}
-                </button>
+                <label className="flex items-center gap-2 cursor-pointer select-none group">
+                    <input
+                        type="checkbox"
+                        checked={removeNoExtBinaries}
+                        onChange={(e) => setRemoveNoExtBinaries(e.target.checked)}
+                        disabled={showProgress}
+                        className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-rose-500 focus:ring-rose-500/30 focus:ring-offset-0 disabled:opacity-50"
+                    />
+                    <span className="text-sm text-slate-400 group-hover:text-slate-300 transition-colors">
+                        Also remove binary files with no extension
+                    </span>
+                </label>
             </section>
 
             {showProgress && (
@@ -127,6 +146,12 @@ function JsonRemover() {
                             <div className="text-3xl font-bold text-rose-400">{status.removed_count.toLocaleString()}</div>
                             <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">JSONs Found</div>
                         </div>
+                        {(status.removed_noext_count > 0 || removeNoExtBinaries) && (
+                            <div>
+                                <div className="text-3xl font-bold text-amber-400">{(status.removed_noext_count || 0).toLocaleString()}</div>
+                                <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">No-Ext Binaries</div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Error count during operation */}
@@ -144,7 +169,8 @@ function JsonRemover() {
                     <div className="text-5xl mb-4">🧹</div>
                     <h2 className="text-2xl font-bold mb-2">Cleanup Complete!</h2>
                     <p className="text-slate-400">
-                        Successfully moved <span className="text-indigo-400 font-bold">{lastRemovedCount.toLocaleString()}</span> JSON files to the trash.
+                        Successfully moved <span className="text-indigo-400 font-bold">{lastRemovedCount.toLocaleString()}</span> JSON files
+                        {lastNoExtCount > 0 && (<> and <span className="text-amber-400 font-bold">{lastNoExtCount.toLocaleString()}</span> no-extension binary files</>)} to the trash.
                     </p>
 
                     {/* Show errors if any occurred */}
@@ -178,8 +204,12 @@ function JsonRemover() {
                     Google Takeout often exports metadata (like GPS coordinates and timestamps) into separate <code>.json</code> files.
                     If you just want your photos and videos, these files can clutter your library.
                 </p>
+                <p>
+                    Optionally, you can also remove binary files that have no file extension — these are often leftover
+                    metadata or thumbnail blobs from exports.
+                </p>
                 <p className="text-rose-400/80 italic">
-                    Note: This action is recursive and will target all <code>.json</code> files in the specified path.
+                    Note: This action is recursive and will target all matching files in the specified path.
                 </p>
             </section>
         </div>
