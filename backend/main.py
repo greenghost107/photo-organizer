@@ -196,6 +196,10 @@ async def delete_files(request: DeleteRequest):
 
     return {"deleted": deleted, "errors": errors}
 
+@app.get("/validate_path")
+async def validate_path(path: str):
+    return {"valid": os.path.isdir(path)}
+
 @app.get("/file")
 async def get_file(path: str):
     if not os.path.exists(path):

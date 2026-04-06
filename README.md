@@ -4,8 +4,20 @@ A modern, efficient local utility to find and cleanup exact binary duplicate pho
 
 ## Features
 
-- **Duplicate Finder** - Scan folders to find exact binary duplicate photos and videos
-- **JSON Remover** - Bulk remove `.json` metadata files from Google Takeout exports
+### Duplicate Finder
+- Scan **multiple folders simultaneously**, including across different drives
+- Per-path validation — green ✓ / red ✕ indicators as you type, with scan blocked on invalid paths
+- **Source folder color-coding** — each drive/folder gets a distinct color in results so you can instantly see where each copy lives
+- **Filter results by source folder** — toggle pills above results let you narrow down duplicate groups by drive/folder
+- Three-stage deduplication (size → partial hash → full SHA-256) handles libraries 100GB+
+- Scan progress shows current folder and folder-of-total count
+- Reveal any file in Windows Explorer, move selected files to the Recycle Bin
+
+### JSON Remover
+- Recursively removes `.json` metadata files from Google Takeout exports
+- **Optional: also remove binary files with no extension** (leftover blobs/thumbnails from exports)
+- Live progress: files inspected, JSONs removed, no-extension binaries removed
+- All deletions go to the Recycle Bin (recoverable)
 
 ## 🚀 Quick Start (Windows)
 
@@ -57,14 +69,16 @@ To handle libraries up to 100GB+ without lag, the scanner uses a **three-stage v
 Google Takeout exports include `.json` metadata files alongside each photo/video. The JSON Remover feature helps clean these up:
 
 - **Real-time progress** - See the current folder being scanned and file counts updating live
+- **Binary no-extension file removal** - Check the option to also remove binary files that have no extension (common Takeout export artifacts)
 - **Error reporting** - Any files that couldn't be removed are listed with details
 - **Safe deletion** - Files are moved to the Recycle Bin, not permanently deleted
 
 ### Usage
 1. Navigate to the "JSON Remover" tab in the UI
 2. Enter the path to your Google Takeout folder
-3. Click "Remove JSONs" and confirm
-4. Watch the progress as folders are scanned and JSON files are removed
+3. Optionally check "Also remove binary files with no extension"
+4. Click "Remove JSONs" and confirm
+5. Watch the progress as folders are scanned and files are removed
 
 ## 🛡️ Safety
 - Deleting a file via the UI uses the **Recycle Bin / Trash** (via `send2trash`), so nothing is permanently lost immediately.
