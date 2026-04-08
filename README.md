@@ -36,6 +36,9 @@ A modern, efficient local utility to find and cleanup exact binary duplicate pho
 
 No Python, Node.js, or terminal needed. Runs with your own user permissions — no admin required.
 
+> **To close the app:** right-click the icon in the system tray (bottom-right of the taskbar) and choose **Quit**.
+> If you don't see the icon, click the **`^`** arrow in the taskbar — Windows may have hidden it in the overflow area.
+
 ---
 
 ## 🛠️ Run from Source (Windows)

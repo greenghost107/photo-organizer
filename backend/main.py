@@ -316,8 +316,50 @@ if os.path.isdir(STATIC_DIR):
 if __name__ == "__main__":
     import uvicorn
 
-    # Auto-open browser only when running as bundled exe
     if getattr(sys, 'frozen', False):
+        import pystray
+        from PIL import Image, ImageDraw
+
+        # Redirect stdout/stderr — --noconsole sets them to None, breaking uvicorn's logger
+        log_path = os.path.join(os.path.dirname(sys.executable), "DupPhotoLocator.log")
+        log_file = open(log_path, "w", buffering=1, encoding="utf-8")
+        sys.stdout = log_file
+        sys.stderr = log_file
+
+        # Run uvicorn in a background thread so pystray can own the main thread
+        config = uvicorn.Config(app, host="127.0.0.1", port=8000, log_config=None)
+        server = uvicorn.Server(config)
+        server_thread = threading.Thread(target=server.run, daemon=True)
+        server_thread.start()
+
+        # Open browser once server is ready
         threading.Timer(1.5, lambda: webbrowser.open("http://localhost:8000")).start()
 
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+        # Generate a simple tray icon (indigo circle)
+        def make_icon_image():
+            img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+            draw = ImageDraw.Draw(img)
+            draw.ellipse([4, 4, 60, 60], fill=(99, 102, 241))   # indigo-500
+            draw.ellipse([18, 18, 46, 46], fill=(255, 255, 255)) # white centre dot
+            return img
+
+        def on_open(icon, item):
+            webbrowser.open("http://localhost:8000")
+
+        def on_quit(icon, item):
+            server.should_exit = True
+            icon.stop()
+
+        tray = pystray.Icon(
+            "DupPhotoLocator",
+            make_icon_image(),
+            "Dup Photo Locator",
+            menu=pystray.Menu(
+                pystray.MenuItem("Open", on_open, default=True),
+                pystray.MenuItem("Quit", on_quit),
+            )
+        )
+        tray.run()  # Blocks main thread; app exits when Quit is clicked
+
+    else:
+        uvicorn.run(app, host="127.0.0.1", port=8000)

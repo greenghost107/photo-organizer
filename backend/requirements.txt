@@ -3,3 +3,5 @@ uvicorn
 pydantic
 python-multipart
 send2trash
+pystray
+Pillow

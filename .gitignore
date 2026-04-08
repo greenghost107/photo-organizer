@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# PyInstaller
+backend/build/
+backend/dist/
+backend/static/
+backend/*.spec
+dist/
+*.log
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Test artifacts
+test_json_cleanup/
+
+# Local plan/notes files
+exe_plan.md
+enhance.md
+task_multi_folder.md
+dup photos_multiple_drives.md
+PRD.md
+JSON_REMOVER.md
+json_fix.md

@@ -38,18 +38,22 @@ def main():
 
     # 3. Run PyInstaller
     print("\n=== Running PyInstaller ===")
+    dist_dir = os.path.join(ROOT, "dist")
     pyinstaller_cmd = (
-        "pyinstaller "
+        "python -m PyInstaller "
         "--onefile "
         "--noconsole "
         '--name "DupPhotoLocator" '
         '--add-data "static;static" '
         '--add-data "scanner.py;." '
+        "--hidden-import pystray._win32 "
+        "--hidden-import PIL._imagingtk "
+        f'--distpath "{dist_dir}" '
         "main.py"
     )
     run(pyinstaller_cmd, cwd=BACKEND_DIR)
 
-    exe_path = os.path.join(BACKEND_DIR, "dist", "DupPhotoLocator.exe")
+    exe_path = os.path.join(dist_dir, "DupPhotoLocator.exe")
     if os.path.exists(exe_path):
         print(f"\n=== Build successful ===")
         print(f"Output: {exe_path}")

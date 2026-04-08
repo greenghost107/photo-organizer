@@ -43,20 +43,20 @@ jobs:
       - name: Build exe with PyInstaller
         run: |
           cd backend
-          pyinstaller --onefile --noconsole --name "DupPhotoLocator" --add-data "static;static" --add-data "scanner.py;." main.py
+          python -m PyInstaller --onefile --noconsole --name "DupPhotoLocator" --add-data "static;static" --add-data "scanner.py;." --hidden-import pystray._win32 --hidden-import PIL._imagingtk --distpath ../dist main.py
 
       - name: Generate SHA256 checksum
         shell: pwsh
         run: |
-          $hash = Get-FileHash backend/dist/DupPhotoLocator.exe -Algorithm SHA256
-          "$($hash.Hash)  DupPhotoLocator.exe" | Out-File -FilePath backend/dist/DupPhotoLocator.exe.sha256 -Encoding utf8
+          $hash = Get-FileHash dist/DupPhotoLocator.exe -Algorithm SHA256
+          "$($hash.Hash)  DupPhotoLocator.exe" | Out-File -FilePath dist/DupPhotoLocator.exe.sha256 -Encoding utf8
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            backend/dist/DupPhotoLocator.exe
-            backend/dist/DupPhotoLocator.exe.sha256
+            dist/DupPhotoLocator.exe
+            dist/DupPhotoLocator.exe.sha256
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
