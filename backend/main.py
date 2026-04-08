@@ -200,6 +200,70 @@ async def delete_files(request: DeleteRequest):
 async def validate_path(path: str):
     return {"valid": os.path.isdir(path)}
 
+class RemovePrefixRequest(BaseModel):
+    path: str
+    prefixes: List[str]
+
+prefix_removal_status = {
+    "running": False,
+    "inspected_count": 0,
+    "renamed_count": 0,
+    "errors": [],
+    "path": "",
+    "current_folder": ""
+}
+
+def perform_prefix_removal(path: str, prefixes: List[str]):
+    global prefix_removal_status
+    prefix_removal_status["running"] = True
+    prefix_removal_status["inspected_count"] = 0
+    prefix_removal_status["renamed_count"] = 0
+    prefix_removal_status["errors"] = []
+    prefix_removal_status["path"] = path
+    prefix_removal_status["current_folder"] = ""
+
+    try:
+        for root, dirs, files in os.walk(path):
+            prefix_removal_status["current_folder"] = root
+            for file in files:
+                prefix_removal_status["inspected_count"] += 1
+                matched_prefix = next((p for p in prefixes if file.startswith(p)), None)
+                if matched_prefix:
+                    new_name = file[len(matched_prefix):]
+                    if not new_name:
+                        continue  # Stripping prefix would leave empty name, skip
+                    old_path = os.path.join(root, file)
+                    new_path = os.path.join(root, new_name)
+                    if os.path.exists(new_path):
+                        prefix_removal_status["errors"].append({"path": old_path, "error": f"Target '{new_name}' already exists"})
+                        continue
+                    try:
+                        os.rename(old_path, new_path)
+                        prefix_removal_status["renamed_count"] += 1
+                    except Exception as e:
+                        prefix_removal_status["errors"].append({"path": old_path, "error": str(e)})
+    except Exception as e:
+        prefix_removal_status["errors"].append({"path": "global", "error": str(e)})
+    finally:
+        prefix_removal_status["running"] = False
+        prefix_removal_status["current_folder"] = ""
+
+@app.post("/remove_prefix")
+async def start_remove_prefix(request: RemovePrefixRequest, background_tasks: BackgroundTasks):
+    if not os.path.exists(request.path):
+        raise HTTPException(status_code=404, detail="Path not found")
+    if prefix_removal_status["running"]:
+        return {"status": "already_running"}
+    valid_prefixes = [p.strip() for p in request.prefixes if p.strip()]
+    if not valid_prefixes:
+        raise HTTPException(status_code=400, detail="At least one prefix required")
+    background_tasks.add_task(perform_prefix_removal, request.path, valid_prefixes)
+    return {"status": "started", "path": request.path, "prefixes": valid_prefixes}
+
+@app.get("/remove_prefix/status")
+async def get_remove_prefix_status():
+    return prefix_removal_status
+
 @app.get("/file")
 async def get_file(path: str):
     if not os.path.exists(path):

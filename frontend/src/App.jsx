@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import DuplicateFinder from './components/DuplicateFinder'
 import JsonRemover from './components/JsonRemover'
+import PrefixRemover from './components/PrefixRemover'
 
 function App() {
   const [activeTab, setActiveTab] = useState('duplicates')
@@ -37,10 +38,21 @@ function App() {
         >
           JSON Remover
         </button>
+        <button
+          onClick={() => setActiveTab('prefix')}
+          className={`px-8 py-3 rounded-2xl font-bold transition-all ${activeTab === 'prefix'
+            ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30'
+            : 'bg-slate-800/50 text-slate-400 hover:bg-slate-800 hover:text-white'
+            }`}
+        >
+          Prefix Remover
+        </button>
       </nav>
 
       <main>
-        {activeTab === 'duplicates' ? <DuplicateFinder /> : <JsonRemover />}
+        {activeTab === 'duplicates' && <DuplicateFinder />}
+        {activeTab === 'json' && <JsonRemover />}
+        {activeTab === 'prefix' && <PrefixRemover />}
       </main>
     </div>
   )

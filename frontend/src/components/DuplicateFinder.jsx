@@ -281,7 +281,9 @@ function DuplicateFinder() {
                     </div>
                     {status.folders_total > 1 && (
                         <p className="text-sm text-slate-400 text-center">
-                            Scanning folder {status.folders_completed + 1} of {status.folders_total}
+                            {status.folders_completed < status.folders_total
+                                ? `Scanning folder ${status.folders_completed + 1} of ${status.folders_total}`
+                                : 'Hashing files...'}
                         </p>
                     )}
                     {status.current_folder && (
@@ -310,37 +312,78 @@ function DuplicateFinder() {
 
                     {/* Source folder filter bar */}
                     {uniqueSourceRoots.length > 1 && (
-                        <div className="flex flex-wrap gap-2 items-center">
-                            <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider mr-1">Filter by source:</span>
-                            {uniqueSourceRoots.map(root => {
-                                const color = sourceColorMap[root]
-                                const active = activeSourceFilters.has(root)
-                                const groupCount = results.filter(g => g.some(f => f.source_root === root)).length
-                                return (
+                        <div className="space-y-2">
+                            <div className="flex flex-wrap gap-2 items-center">
+                                <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider mr-1">Filter by source:</span>
+                                {uniqueSourceRoots.map(root => {
+                                    const color = sourceColorMap[root]
+                                    const active = activeSourceFilters.has(root)
+                                    const groupCount = results.filter(g => g.some(f => f.source_root === root)).length
+                                    return (
+                                        <button
+                                            key={root}
+                                            onClick={() => toggleSourceFilter(root)}
+                                            className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition-all ${
+                                                active
+                                                    ? `${color.bg} ${color.text} ${color.border}`
+                                                    : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-500'
+                                            }`}
+                                            title={root}
+                                        >
+                                            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${color.dot}`}></span>
+                                            <span className="truncate max-w-[160px]">{root.split(/[\\/]/).pop() || root}</span>
+                                            <span className="opacity-60">({groupCount})</span>
+                                        </button>
+                                    )
+                                })}
+                                {activeSourceFilters.size > 0 && (
                                     <button
-                                        key={root}
-                                        onClick={() => toggleSourceFilter(root)}
-                                        className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition-all ${
-                                            active
-                                                ? `${color.bg} ${color.text} ${color.border}`
-                                                : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-500'
-                                        }`}
-                                        title={root}
+                                        onClick={() => setActiveSourceFilters(new Set())}
+                                        className="text-xs text-slate-500 hover:text-slate-300 underline ml-1 transition-colors"
                                     >
-                                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${color.dot}`}></span>
-                                        <span className="truncate max-w-[160px]">{root.split(/[\\/]/).pop() || root}</span>
-                                        <span className="opacity-60">({groupCount})</span>
+                                        Clear
                                     </button>
-                                )
-                            })}
-                            {activeSourceFilters.size > 0 && (
-                                <button
-                                    onClick={() => setActiveSourceFilters(new Set())}
-                                    className="text-xs text-slate-500 hover:text-slate-300 underline ml-1 transition-colors"
-                                >
-                                    Clear
-                                </button>
-                            )}
+                                )}
+                            </div>
+                            <div className="flex flex-wrap gap-2 items-center">
+                                <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider mr-1">Select dupes from:</span>
+                                {uniqueSourceRoots.map(root => {
+                                    const color = sourceColorMap[root]
+                                    // Count how many files from this source are selectable (have a duplicate from another source)
+                                    const selectableFromRoot = results.flatMap(group => {
+                                        const fromRoot = group.filter(f => f.source_root === root)
+                                        const fromOther = group.filter(f => f.source_root !== root)
+                                        // Only selectable if there are copies from another source (keeps at least one)
+                                        return fromOther.length > 0 ? fromRoot : []
+                                    })
+                                    const allSelected = selectableFromRoot.length > 0 && selectableFromRoot.every(f => selected.has(f.path))
+                                    return (
+                                        <button
+                                            key={root}
+                                            onClick={() => {
+                                                const next = new Set(selected)
+                                                if (allSelected) {
+                                                    selectableFromRoot.forEach(f => next.delete(f.path))
+                                                } else {
+                                                    selectableFromRoot.forEach(f => next.add(f.path))
+                                                }
+                                                setSelected(next)
+                                            }}
+                                            disabled={selectableFromRoot.length === 0}
+                                            className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition-all disabled:opacity-30 ${
+                                                allSelected
+                                                    ? `${color.bg} ${color.text} ${color.border}`
+                                                    : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-500'
+                                            }`}
+                                            title={allSelected ? `Deselect all from ${root}` : `Select all duplicates from ${root}`}
+                                        >
+                                            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${color.dot}`}></span>
+                                            <span className="truncate max-w-[160px]">{root.split(/[\\/]/).pop() || root}</span>
+                                            <span className="opacity-60">({selectableFromRoot.length})</span>
+                                        </button>
+                                    )
+                                })}
+                            </div>
                         </div>
                     )}
 
