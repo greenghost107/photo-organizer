@@ -11,6 +11,7 @@ A modern, efficient local utility to find and cleanup exact binary duplicate pho
 - **Filter results by source folder** — toggle pills above results let you narrow down duplicate groups by drive/folder
 - Three-stage deduplication (size → partial hash → full SHA-256) handles libraries 100GB+
 - Scan progress shows current folder and folder-of-total count
+- **Bulk select duplicates from a source folder** — one click to select all copies from a specific drive for easy cleanup
 - Reveal any file in Windows Explorer, move selected files to the Recycle Bin
 
 ### JSON Remover
@@ -18,6 +19,13 @@ A modern, efficient local utility to find and cleanup exact binary duplicate pho
 - **Optional: also remove binary files with no extension** (leftover blobs/thumbnails from exports)
 - Live progress: files inspected, JSONs removed, no-extension binaries removed
 - All deletions go to the Recycle Bin (recoverable)
+
+### Prefix Remover
+- Bulk-rename files by stripping common prefixes like `VID_`, `MOV_`, `IMG_`
+- Comma-separated prefix input with live preview badges
+- Skips files where renaming would cause a name conflict
+- Live progress: files inspected, files renamed, errors
+- Renames in place — does not move or delete anything
 
 ## 🚀 Quick Start (Windows)
 
