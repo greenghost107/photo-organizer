@@ -21,8 +21,14 @@ function PrefixRemover() {
                     const res = await fetch('http://localhost:8000/remove_prefix/status')
                     const data = await res.json()
                     setStatus(data)
-                    if (data.running) setIsStarting(false)
-                    if (!data.running && !isStarting) {
+                    if (data.running) {
+                        setIsStarting(false)
+                    } else if (isStarting && data.inspected_count > 0) {
+                        // Backend started and finished between polls
+                        setIsStarting(false)
+                        setLastRenamedCount(data.renamed_count)
+                        setLastErrors(data.errors || [])
+                    } else if (!isStarting) {
                         setLastRenamedCount(data.renamed_count)
                         setLastErrors(data.errors || [])
                     }
