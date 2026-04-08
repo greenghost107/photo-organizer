@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 
 function PrefixRemover() {
     const [path, setPath] = useState('')
-    const [prefixInput, setPrefixInput] = useState('VID_, MOV_, IMG_')
+    const [prefixInput, setPrefixInput] = useState('VID_, VID-, MOV_, IMG_')
     const [status, setStatus] = useState({ running: false, inspected_count: 0, renamed_count: 0, errors: [], current_folder: '' })
     const [lastRenamedCount, setLastRenamedCount] = useState(null)
     const [lastErrors, setLastErrors] = useState([])

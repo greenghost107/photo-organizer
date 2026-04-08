@@ -21,7 +21,7 @@ A modern, efficient local utility to find and cleanup exact binary duplicate pho
 - All deletions go to the Recycle Bin (recoverable)
 
 ### Prefix Remover
-- Bulk-rename files by stripping common prefixes like `VID_`, `MOV_`, `IMG_`
+- Bulk-rename files by stripping common prefixes like `VID_`, `VID-`, `MOV_`, `IMG_`
 - Comma-separated prefix input with live preview badges
 - Skips files where renaming would cause a name conflict
 - Live progress: files inspected, files renamed, errors
