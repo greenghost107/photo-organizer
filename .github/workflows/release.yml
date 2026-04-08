@@ -1,0 +1,62 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Python dependencies
+        run: |
+          pip install -r backend/requirements.txt
+          pip install pyinstaller
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm install
+          npm run build
+
+      - name: Copy frontend dist to backend/static
+        shell: pwsh
+        run: |
+          if (Test-Path backend/static) { Remove-Item -Recurse -Force backend/static }
+          Copy-Item -Recurse frontend/dist backend/static
+
+      - name: Build exe with PyInstaller
+        run: |
+          cd backend
+          pyinstaller --onefile --noconsole --name "DupPhotoLocator" --add-data "static;static" --add-data "scanner.py;." main.py
+
+      - name: Generate SHA256 checksum
+        shell: pwsh
+        run: |
+          $hash = Get-FileHash backend/dist/DupPhotoLocator.exe -Algorithm SHA256
+          "$($hash.Hash)  DupPhotoLocator.exe" | Out-File -FilePath backend/dist/DupPhotoLocator.exe.sha256 -Encoding utf8
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            backend/dist/DupPhotoLocator.exe
+            backend/dist/DupPhotoLocator.exe.sha256
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

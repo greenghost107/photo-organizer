@@ -45,7 +45,7 @@ function DuplicateFinder() {
         if (status.scanning) {
             interval = setInterval(async () => {
                 try {
-                    const res = await fetch('http://localhost:8000/status');
+                    const res = await fetch('/status');
                     const data = await res.json();
                     setStatus(data);
                     if (!data.scanning && data.progress === 100) {
@@ -61,7 +61,7 @@ function DuplicateFinder() {
 
     const fetchResults = async () => {
         try {
-            const res = await fetch('http://localhost:8000/results');
+            const res = await fetch('/results');
             const data = await res.json();
             setResults(data.results);
             setActiveSourceFilters(new Set());
@@ -108,7 +108,7 @@ function DuplicateFinder() {
         // Debounce path validation
         validationTimers.current[index] = setTimeout(async () => {
             try {
-                const res = await fetch(`http://localhost:8000/validate_path?path=${encodeURIComponent(value)}`)
+                const res = await fetch(`/validate_path?path=${encodeURIComponent(value)}`)
                 const data = await res.json()
                 setPathValidation(prev => ({ ...prev, [index]: data.valid }))
             } catch (e) {
@@ -122,7 +122,7 @@ function DuplicateFinder() {
         if (validPaths.length === 0) return;
 
         try {
-            const res = await fetch('http://localhost:8000/scan', {
+            const res = await fetch('/scan', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ paths: validPaths })
@@ -160,7 +160,7 @@ function DuplicateFinder() {
         if (!confirm(`Trash ${pathsToDelete.length} files?`)) return;
 
         try {
-            const res = await fetch('http://localhost:8000/delete', {
+            const res = await fetch('/delete', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ paths: pathsToDelete })
@@ -423,7 +423,7 @@ function DuplicateFinder() {
                                                 <div className="aspect-square bg-slate-800 rounded-lg mb-3 flex items-center justify-center overflow-hidden">
                                                     {file.name.match(/\.(jpg|jpeg|png|gif|heic)$/i) ? (
                                                         <img
-                                                            src={`http://localhost:8000/file?path=${encodeURIComponent(file.path)}`}
+                                                            src={`/file?path=${encodeURIComponent(file.path)}`}
                                                             className="w-full h-full object-cover"
                                                             alt={file.name}
                                                             loading="lazy"
@@ -443,7 +443,7 @@ function DuplicateFinder() {
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                fetch(`http://localhost:8000/reveal?path=${encodeURIComponent(file.path)}`);
+                                                                fetch(`/reveal?path=${encodeURIComponent(file.path)}`);
                                                             }}
                                                             className="p-1.5 hover:bg-white/10 rounded-lg text-slate-400 hover:text-indigo-400 transition-colors flex-shrink-0"
                                                             title="Reveal in Explorer"

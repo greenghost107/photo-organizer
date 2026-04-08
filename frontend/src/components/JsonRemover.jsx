@@ -21,7 +21,7 @@ function JsonRemover() {
             interval = setInterval(async () => {
                 try {
                     console.log('[JsonRemover] Polling status...')
-                    const res = await fetch('http://localhost:8000/remove_json/status');
+                    const res = await fetch('/remove_json/status');
                     const data = await res.json();
                     console.log('[JsonRemover] Status response:', data)
                     setStatus(data);
@@ -59,7 +59,7 @@ function JsonRemover() {
 
         try {
             console.log('[JsonRemover] Starting removal for path:', path)
-            const res = await fetch('http://localhost:8000/remove_json', {
+            const res = await fetch('/remove_json', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ path, remove_no_ext_binaries: removeNoExtBinaries })

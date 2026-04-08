@@ -1,14 +1,16 @@
 from fastapi import FastAPI, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List, Dict
 import os
+import sys
+import webbrowser
+import threading
+import subprocess
 from scanner import scanner_instance
 from send2trash import send2trash
-import threading
-import time
-import subprocess
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi import HTTPException
 
 app = FastAPI()
@@ -20,11 +22,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Determine base path (works both in dev and PyInstaller bundle)
+if getattr(sys, 'frozen', False):
+    BASE_DIR = sys._MEIPASS
+else:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+STATIC_DIR = os.path.join(BASE_DIR, "static")
+
 class ScanRequest(BaseModel):
     path: str = None  # For backward compatibility
     paths: List[str] = None  # New multi-path support
 
-@app.get("/")
+@app.get("/api")
 async def root():
     return {"message": "Dup Photo Locator API"}
 
@@ -285,6 +295,29 @@ async def reveal_file(path: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# Mount built frontend static files if they exist (production / bundled exe)
+if os.path.isdir(STATIC_DIR):
+    app.mount("/assets", StaticFiles(directory=os.path.join(STATIC_DIR, "assets")), name="assets")
+
+    @app.get("/", response_class=HTMLResponse)
+    async def serve_index():
+        with open(os.path.join(STATIC_DIR, "index.html"), "r", encoding="utf-8") as f:
+            return f.read()
+
+    @app.get("/{full_path:path}", response_class=HTMLResponse)
+    async def serve_spa(full_path: str):
+        # Don't intercept API routes
+        if full_path.startswith(("scan", "status", "results", "delete", "file", "reveal",
+                                  "validate_path", "remove_json", "remove_prefix", "api")):
+            raise HTTPException(status_code=404)
+        with open(os.path.join(STATIC_DIR, "index.html"), "r", encoding="utf-8") as f:
+            return f.read()
+
 if __name__ == "__main__":
     import uvicorn
+
+    # Auto-open browser only when running as bundled exe
+    if getattr(sys, 'frozen', False):
+        threading.Timer(1.5, lambda: webbrowser.open("http://localhost:8000")).start()
+
     uvicorn.run(app, host="127.0.0.1", port=8000)

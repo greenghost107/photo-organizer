@@ -27,9 +27,20 @@ A modern, efficient local utility to find and cleanup exact binary duplicate pho
 - Live progress: files inspected, files renamed, errors
 - Renames in place — does not move or delete anything
 
-## 🚀 Quick Start (Windows)
+## 🚀 Download (Windows)
 
-The easiest way to run the app is using the provided PowerShell script:
+1. Go to the [Releases](../../releases/latest) page
+2. Download `DupPhotoLocator.exe`
+3. Optionally verify the SHA256 checksum from `DupPhotoLocator.exe.sha256`
+4. Double-click the exe — your browser opens automatically
+
+No Python, Node.js, or terminal needed. Runs with your own user permissions — no admin required.
+
+---
+
+## 🛠️ Run from Source (Windows)
+
+The easiest way is using the provided PowerShell script:
 
 1. Open PowerShell in the project root.
 2. Run:
@@ -39,6 +50,14 @@ The easiest way to run the app is using the provided PowerShell script:
 3. Open your browser to [http://localhost:5173](http://localhost:5173).
 
 ---
+
+## 📦 Building the exe yourself
+
+```bash
+pip install pyinstaller
+python build.py
+# Output: backend/dist/DupPhotoLocator.exe
+```
 
 ## 🛠️ Manual Setup
 

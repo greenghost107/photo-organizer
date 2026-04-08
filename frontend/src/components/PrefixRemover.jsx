@@ -18,7 +18,7 @@ function PrefixRemover() {
         if (status.running || isStarting) {
             interval = setInterval(async () => {
                 try {
-                    const res = await fetch('http://localhost:8000/remove_prefix/status')
+                    const res = await fetch('/remove_prefix/status')
                     const data = await res.json()
                     setStatus(data)
                     if (data.running) {
@@ -52,7 +52,7 @@ function PrefixRemover() {
         setIsStarting(true)
 
         try {
-            const res = await fetch('http://localhost:8000/remove_prefix', {
+            const res = await fetch('/remove_prefix', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ path, prefixes: parsedPrefixes })
